@@ -27,6 +27,7 @@ final class SingleThreadedSparkeyWriter implements SparkeyWriter {
   private double sparsity;
   private HashType hashType;
   private boolean fsync;
+  private HashWriteStrategy hashWriteStrategy = HashWriteStrategy.AUTO;
 
   private SingleThreadedSparkeyWriter(File indexFile, LogWriter logWriter) {
     this.logFile = logWriter.getFile();
@@ -87,7 +88,7 @@ final class SingleThreadedSparkeyWriter implements SparkeyWriter {
     File parentFile = indexFile.getCanonicalFile().getParentFile();
     File newFile = new File(parentFile, indexFile.getName() + "-tmp" + System.currentTimeMillis());
     try {
-      IndexHash.createNew(newFile, logFile, hashType, sparsity, fsync);
+      IndexHash.createNew(newFile, logFile, hashType, sparsity, fsync, hashWriteStrategy);
       boolean successful = newFile.renameTo(indexFile);
       if (!successful) {
         throw new IOException("Could not rename " + newFile + " to " + indexFile);
@@ -115,6 +116,11 @@ final class SingleThreadedSparkeyWriter implements SparkeyWriter {
   @Override
   public void setHashSparsity(double sparsity) {
     this.sparsity = sparsity;
+  }
+
+  @Override
+  public void setHashWriteStrategy(HashWriteStrategy hashWriteStrategy) {
+    this.hashWriteStrategy = hashWriteStrategy;
   }
 
   @Override

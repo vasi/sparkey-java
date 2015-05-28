@@ -164,6 +164,11 @@
       <version>1.7.2</version>
     </dependency>
     <dependency>
+      <groupId>com.fasterxml.util</groupId>
+      <artifactId>java-merge-sort</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+    <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
       <version>1.0.9</version>

@@ -95,4 +95,6 @@ public interface SparkeyWriter extends Closeable {
    * @param sparsity
    */
   void setHashSparsity(double sparsity);
+
+  void setHashWriteStrategy(HashWriteStrategy strategy);
 }

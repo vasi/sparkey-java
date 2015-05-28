@@ -22,7 +22,7 @@ final class Util {
     return ((int) b) & 0xFF;
   }
 
-  static void writeLittleEndianInt(int value, InMemoryData data) throws IOException {
+  static void writeLittleEndianInt(int value, ReadWriteData data) throws IOException {
     data.writeUnsignedByte((value) & 0xFF);
     data.writeUnsignedByte((value >>> 8) & 0xFF);
     data.writeUnsignedByte((value >>> 16) & 0xFF);
@@ -36,7 +36,7 @@ final class Util {
     rw.write((value >>> 24) & 0xFF);
   }
 
-  static void writeLittleEndianLong(long value, InMemoryData data) throws IOException {
+  static void writeLittleEndianLong(long value, ReadWriteData data) throws IOException {
     data.writeUnsignedByte((int) ((value) & 0xFF));
     data.writeUnsignedByte((int) ((value >>> 8) & 0xFF));
     data.writeUnsignedByte((int) ((value >>> 16) & 0xFF));
@@ -52,7 +52,7 @@ final class Util {
     writeLittleEndianInt((int) (value >>> 32), rw);
   }
 
-  static long readLittleEndianLong(RandomAccessData data) throws IOException {
+  static long readLittleEndianLong(ReadableData data) throws IOException {
     long res = (long) data.readUnsignedByte();
     res |= ((long) data.readUnsignedByte()) << 8;
     res |= ((long) data.readUnsignedByte()) << 16;
@@ -71,7 +71,7 @@ final class Util {
             input) << 48 | (long) readByte(input) << 56;
   }
 
-  static int readLittleEndianInt(RandomAccessData data) throws IOException {
+  static int readLittleEndianInt(ReadableData data) throws IOException {
     int a = data.readUnsignedByte();
     int b = data.readUnsignedByte();
     int c = data.readUnsignedByte();

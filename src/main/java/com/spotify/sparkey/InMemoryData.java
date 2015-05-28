@@ -15,14 +15,16 @@
  */
 package com.spotify.sparkey;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-final class InMemoryData implements RandomAccessData {
+final class InMemoryData implements ReadWriteData {
   private static final int CHUNK_SIZE = 1 << 30;
   private static final int BITMASK_30 = ((1 << 30) - 1);
 
   private final byte[][] chunks;
+  private final File indexFile;
   private final long size;
   private final int numChunks;
 
@@ -30,7 +32,8 @@ final class InMemoryData implements RandomAccessData {
   private byte[] curChunk;
   private int curChunkPos;
 
-  InMemoryData(long size) {
+  InMemoryData(File indexFile, long size) {
+    this.indexFile = indexFile;
     this.size = size;
     if (size < 0) {
       throw new IllegalArgumentException("Negative size: " + size);
@@ -55,14 +58,16 @@ final class InMemoryData implements RandomAccessData {
     curChunk = chunks[0];
   }
 
-  void close() {
+  @Override
+  public void close() {
     for (int i = 0; i < numChunks; i++) {
       chunks[i] = null;
     }
     curChunk = null;
   }
 
-  void seek(long pos) throws IOException {
+  @Override
+  public void seek(long pos) throws IOException {
     if (pos > size) {
       throw new IOException("Corrupt index: referencing data outside of range");
     }
@@ -72,11 +77,28 @@ final class InMemoryData implements RandomAccessData {
     curChunkPos = ((int) pos) & BITMASK_30;
   }
 
-  void writeUnsignedByte(int value) throws IOException {
+  @Override
+  public void writeUnsignedByte(int value) throws IOException {
     if (curChunkPos == CHUNK_SIZE) {
       next();
     }
     curChunk[curChunkPos++] = (byte) value;
+  }
+
+  @Override
+  public void flush(IndexHeader header, boolean fsync) throws IOException {
+    FileOutputStream stream = new FileOutputStream(indexFile);
+    try {
+      header.write(stream);
+      flushToFile(stream);
+      stream.flush(); // Not needed for FileOutputStream, but still semantically correct
+      if (fsync) {
+        stream.getFD().sync();
+      }
+    } finally {
+      close();
+      stream.close();
+    }
   }
 
   private void next() throws IOException {

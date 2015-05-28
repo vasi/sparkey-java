@@ -125,7 +125,7 @@ public final class IndexHeader extends CommonHeader {
     }
   }
 
-  void write(FileOutputStream stream) throws IOException {
+  ByteBuffer writeToByteBuffer() {
     ByteBuffer byteBuffer = ByteBuffer.allocate(HEADER_SIZE);
     byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
     byteBuffer.putInt(MAGIC_NUMBER);
@@ -153,6 +153,11 @@ public final class IndexHeader extends CommonHeader {
     if (byteBuffer.position() != HEADER_SIZE) {
       throw new RuntimeException("Programming error! Header size was incorrect, expected " + HEADER_SIZE + " but was " + byteBuffer.position());
     }
+    return byteBuffer;
+  }
+
+  void write(OutputStream stream) throws IOException {
+    ByteBuffer byteBuffer = writeToByteBuffer();
     stream.write(byteBuffer.array());
   }
 

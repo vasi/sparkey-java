@@ -20,12 +20,12 @@ import java.io.IOException;
 public enum HashType {
   HASH_64_BITS(8) {
     @Override
-    long readHash(RandomAccessData data) throws IOException {
+    long readHash(ReadableData data) throws IOException {
       return Util.readLittleEndianLong(data);
     }
 
     @Override
-    void writeHash(long hash, InMemoryData data) throws IOException {
+    void writeHash(long hash, ReadWriteData data) throws IOException {
       Util.writeLittleEndianLong(hash, data);
     }
 
@@ -36,12 +36,12 @@ public enum HashType {
   },
   HASH_32_BITS(4) {
     @Override
-    long readHash(RandomAccessData data) throws IOException {
+    long readHash(ReadableData data) throws IOException {
       return Util.readLittleEndianInt(data) & INT_MASK;
     }
 
     @Override
-    void writeHash(long hash, InMemoryData data) throws IOException {
+    void writeHash(long hash, ReadWriteData data) throws IOException {
       Util.writeLittleEndianInt((int) hash, data);
     }
 
@@ -60,9 +60,9 @@ public enum HashType {
   }
 
 
-  abstract long readHash(RandomAccessData data) throws IOException;
+  abstract long readHash(ReadableData data) throws IOException;
 
-  abstract void writeHash(long hash, InMemoryData data) throws IOException;
+  abstract void writeHash(long hash, ReadWriteData data) throws IOException;
 
   abstract long hash(int keyLen, byte[] key, int seed);
 

@@ -29,7 +29,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-final class ReadOnlyMemMap implements RandomAccessData {
+final class ReadOnlyMemMap implements ReadableData {
   private static final ScheduledExecutorService CLEANER = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
     @Override
     public Thread newThread(Runnable r) {

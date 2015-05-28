@@ -19,7 +19,11 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.primitives.UnsignedLongs;
 
-import java.io.*;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Random;
 
 final class IndexHash {
@@ -118,7 +122,8 @@ final class IndexHash {
     return i;
   }
 
-  static void createNew(File indexFile, File logFile, HashType hashType, double sparsity, boolean fsync) throws IOException {
+  static void createNew(File indexFile, File logFile, HashType hashType, double sparsity, boolean fsync,
+                        HashWriteStrategy hashWriteStrategy) throws IOException {
     if (sparsity < 1.3) {
       sparsity = 1.3;
     }
@@ -137,15 +142,41 @@ final class IndexHash {
 
     long hashLength = header.getHashLength();
 
-    InMemoryData indexData = new InMemoryData(hashLength);
+    if (hashWriteStrategy == HashWriteStrategy.AUTO) {
+      if (hashLength < 128 * 1024 * 1024) {
+        hashWriteStrategy = HashWriteStrategy.INMEMORY;
+      } else {
+        hashWriteStrategy = HashWriteStrategy.ON_DISK;
+      }
+    }
+
+    ReadWriteData indexData;
+
+    switch (hashWriteStrategy) {
+      case AUTO:
+        throw new RuntimeException("Logical error - this should not be reachable");
+      case INMEMORY:
+        indexData = new InMemoryData(indexFile, hashLength);
+        break;
+      case ON_DISK:
+        indexData = new ReadWriteMemMap(indexFile);
+        break;
+      default:
+        throw new RuntimeException("Logical error - this should not be reachable");
+    }
+
+    // TODO: also create iterator based on strategy - might need to refactor SparkeyLogIterator to
+    // separate the hash reading from the log reading
 
     fillFromLog(indexData, logFile, header, logHeader.size(), header.getDataEnd(),
             logHeader);
     calculateMaxDisplacement(header, indexData);
-    flushToFile(indexFile, header, indexData, fsync);
+    indexData.flush(header, fsync);
+    indexData.close();
+
   }
 
-  private static void calculateMaxDisplacement(IndexHeader header, InMemoryData indexData) throws IOException {
+  private static void calculateMaxDisplacement(IndexHeader header, ReadWriteData indexData) throws IOException {
     HashType hashData = header.getHashType();
     AddressSize addressData = header.getAddressData();
 
@@ -202,27 +233,12 @@ final class IndexHash {
     return logHeader.getDataEnd() <= (1L << (30 - entryBlockBits));
   }
 
-  private static void flushToFile(File file, IndexHeader header, InMemoryData data, boolean fsync) throws IOException {
-    FileOutputStream stream = new FileOutputStream(file);
-    try {
-      header.write(stream);
-      data.flushToFile(stream);
-      stream.flush(); // Not needed for FileOutputStream, but still semantically correct
-      if (fsync) {
-        stream.getFD().sync();
-      }
-    } finally {
-      data.close();
-      stream.close();
-    }
-  }
-
   void close() {
     this.indexData.close();
     this.logData.close();
   }
 
-  private static void fillFromLog(InMemoryData indexData, File logFile, IndexHeader header, long start, long end, LogHeader logHeader) throws IOException {
+  private static void fillFromLog(ReadWriteData indexData, File logFile, IndexHeader header, long start, long end, LogHeader logHeader) throws IOException {
     SparkeyLogIterator iterator = new SparkeyLogIterator(logFile, start, end);
     BlockRandomInput logData = logHeader.getCompressionType().createRandomAccessData(new ReadOnlyMemMap(logFile), logHeader.getCompressionBlockSize());
 
@@ -362,7 +378,7 @@ final class IndexHash {
     }
   }
 
-  private static void delete(InMemoryData indexData, IndexHeader header, long hashCapacity, int keyLen,
+  private static void delete(ReadWriteData indexData, IndexHeader header, long hashCapacity, int keyLen,
                              byte[] key, BlockRandomInput logData,
                              byte[] keyBuf, HashType hashData, AddressSize addressData, int entryIndexBitmask, int entryIndexBits) throws IOException {
     long hash = hashData.hash(keyLen, key, header.getHashSeed());
@@ -452,7 +468,7 @@ final class IndexHash {
     }
   }
 
-  private static void put(InMemoryData indexData, IndexHeader header, long hashCapacity, int keyLen, byte[] key,
+  private static void put(ReadWriteData indexData, IndexHeader header, long hashCapacity, int keyLen, byte[] key,
                           long position, int entryIndex, BlockRandomInput logData,
                           byte[] keyBuf, HashType hashData, AddressSize addressData, int entryIndexBitmask, int entryIndexBits) throws IOException {
 
@@ -533,7 +549,7 @@ final class IndexHash {
     throw new IOException("No free slots in the hash");
   }
 
-  private static long getWantedSlot(long hash, long capacity) {
+  static long getWantedSlot(long hash, long capacity) {
     return UnsignedLongs.remainder(hash, capacity);
   }
 

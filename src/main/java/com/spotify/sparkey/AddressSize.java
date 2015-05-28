@@ -20,30 +20,30 @@ import java.io.IOException;
 enum AddressSize {
   LONG() {
     @Override
-    long readAddress(RandomAccessData data) throws IOException {
+    long readAddress(ReadableData data) throws IOException {
       return Util.readLittleEndianLong(data);
     }
 
     @Override
-    void writeAddress(long address, InMemoryData data) throws IOException {
+    void writeAddress(long address, ReadWriteData data) throws IOException {
       Util.writeLittleEndianLong(address, data);
     }
   },
   INT() {
     @Override
-    long readAddress(RandomAccessData data) throws IOException {
+    long readAddress(ReadableData data) throws IOException {
       return Util.readLittleEndianInt(data) & INT_MASK;
     }
 
     @Override
-    void writeAddress(long address, InMemoryData data) throws IOException {
+    void writeAddress(long address, ReadWriteData data) throws IOException {
       Util.writeLittleEndianInt((int) address, data);
     }
   };
 
   private static final long INT_MASK = (1L << 32) - 1;
 
-  abstract long readAddress(RandomAccessData data) throws IOException;
+  abstract long readAddress(ReadableData data) throws IOException;
 
-  abstract void writeAddress(long address, InMemoryData data) throws IOException;
+  abstract void writeAddress(long address, ReadWriteData data) throws IOException;
 }
