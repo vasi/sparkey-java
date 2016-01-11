@@ -21,23 +21,23 @@ enum AddressSize {
   LONG(8) {
     @Override
     long readAddress(RandomAccessData data, long offset) throws IOException {
-      return Util.readLittleEndianLong(data, offset);
+      return data.readLong(offset);
     }
 
     @Override
     void writeAddress(long address, InMemoryData data, long offset) throws IOException {
-      Util.writeLittleEndianLong(address, data, offset);
+      data.writeLong(offset, address);
     }
   },
   INT(4) {
     @Override
     long readAddress(RandomAccessData data, long offset) throws IOException {
-      return Util.readLittleEndianInt(data, offset) & INT_MASK;
+      return data.readInt(offset) & INT_MASK;
     }
 
     @Override
     void writeAddress(long address, InMemoryData data, long offset) throws IOException {
-      Util.writeLittleEndianInt((int) address, data, offset);
+      data.writeInt(offset, (int) address);
     }
   };
 

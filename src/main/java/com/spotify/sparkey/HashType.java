@@ -21,12 +21,12 @@ public enum HashType {
   HASH_64_BITS(8) {
     @Override
     long readHash(RandomAccessData data, long offset) throws IOException {
-      return Util.readLittleEndianLong(data, offset);
+      return data.readLong(offset);
     }
 
     @Override
     void writeHash(long hash, InMemoryData data, long offset) throws IOException {
-      Util.writeLittleEndianLong(hash, data, offset);
+      data.writeLong(offset, hash);
     }
 
     @Override
@@ -37,12 +37,12 @@ public enum HashType {
   HASH_32_BITS(4) {
     @Override
     long readHash(RandomAccessData data, long offset) throws IOException {
-      return Util.readLittleEndianInt(data, offset) & INT_MASK;
+      return data.readInt(offset) & INT_MASK;
     }
 
     @Override
     void writeHash(long hash, InMemoryData data, long offset) throws IOException {
-      Util.writeLittleEndianInt((int) hash, data, offset);
+      data.writeInt(offset, (int) hash);
     }
 
     @Override

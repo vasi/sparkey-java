@@ -35,10 +35,6 @@ final class Util {
     return ((int) b) & 0xFF;
   }
 
-  static void writeLittleEndianInt(int value, InMemoryData data, long offset) throws IOException {
-    data.writeInt(offset, value);
-  }
-
   static void writeLittleEndianInt(int value, RandomAccessFile rw) throws IOException {
     rw.write((value) & 0xFF);
     rw.write((value >>> 8) & 0xFF);
@@ -46,17 +42,9 @@ final class Util {
     rw.write((value >>> 24) & 0xFF);
   }
 
-  static void writeLittleEndianLong(long value, InMemoryData data, long offset) throws IOException {
-    data.writeLong(offset, value);
-  }
-
   static void writeLittleEndianLong(long value, RandomAccessFile rw) throws IOException {
     writeLittleEndianInt((int) value, rw);
     writeLittleEndianInt((int) (value >>> 32), rw);
-  }
-
-  static long readLittleEndianLong(RandomAccessData data, long offset) throws IOException {
-    return data.readLong(offset);
   }
 
   static long readLittleEndianLong(InputStream input) throws IOException {
@@ -64,10 +52,6 @@ final class Util {
             input) << 16 | (long) readByte(input) << 24
             | (long) readByte(input) << 32 | (long) readByte(input) << 40 | (long) readByte(
             input) << 48 | (long) readByte(input) << 56;
-  }
-
-  static int readLittleEndianInt(RandomAccessData data, long offset) throws IOException {
-    return data.readInt(offset);
   }
 
   static int readLittleEndianInt(InputStream input) throws IOException {
