@@ -150,7 +150,6 @@ final class IndexHash {
     AddressSize addressData = header.getAddressData();
 
     long pos = 0;
-    indexData.seek(pos);
     long capacity = header.getHashCapacity();
 
     long maxDisplacement = 0;
@@ -166,11 +165,11 @@ final class IndexHash {
     boolean hasPrev = false;
     long prevHash = -1;
     for (long slot = 0; slot < capacity; slot++) {
-      long hash = hashData.readHash(indexData);
+      long hash = hashData.readHash(indexData, pos);
       if (hasPrev && prevHash == hash) {
         numHashCollisions++;
       }
-      long position = addressData.readAddress(indexData);
+      long position = addressData.readAddress(indexData, pos + hashData.size());
       if (position != 0) {
         prevHash = hash;
         hasPrev = true;
@@ -275,13 +274,14 @@ final class IndexHash {
 
     int start = indexStart;
     long pos = start + wantedSlot * slotSize;
-    indexData.seek(pos);
+
+    final int hashSize = hashData.size();
 
     long slot = wantedSlot;
     long displacement = 0;
     while (true) {
-      long hash2 = hashData.readHash(indexData);
-      long position2 = addressData.readAddress(indexData);
+      long hash2 = hashData.readHash(indexData, pos);
+      long position2 = addressData.readAddress(indexData, pos + hashSize);
       if (position2 == 0) {
         return false;
       }
@@ -302,7 +302,6 @@ final class IndexHash {
       if (slot == hashCapacity) {
         pos = start;
         slot = 0;
-        indexData.seek(start);
       }
     }
   }
@@ -315,14 +314,15 @@ final class IndexHash {
 
     int start = indexStart;
     long pos = start + wantedSlot * slotSize;
-    indexData.seek(pos);
+
+    final int hashSize = hashData.size();
 
     long slot = wantedSlot;
     long displacement = 0;
 
     while (true) {
-      long hash2 = hashData.readHash(indexData);
-      long position2 = addressData.readAddress(indexData);
+      long hash2 = hashData.readHash(indexData, pos);
+      long position2 = addressData.readAddress(indexData, pos + hashSize);
       if (position2 == 0) {
         return null;
       }
@@ -357,7 +357,6 @@ final class IndexHash {
       if (slot == hashCapacity) {
         pos = start;
         slot = 0;
-        indexData.seek(start);
       }
     }
   }
@@ -369,14 +368,15 @@ final class IndexHash {
     long wantedSlot = getWantedSlot(hash, hashCapacity);
 
     long pos = wantedSlot * header.getSlotSize();
-    indexData.seek(pos);
+
+    final int hashSize = hashData.size();
 
     long slot = wantedSlot;
     long displacement = 0;
 
     while (true) {
-      long hash2 = hashData.readHash(indexData);
-      long position2 = addressData.readAddress(indexData);
+      long hash2 = hashData.readHash(indexData, pos);
+      long position2 = addressData.readAddress(indexData, pos + hashSize);
       if (position2 == 0) {
         return;
       }
@@ -398,9 +398,9 @@ final class IndexHash {
             // TODO: possibly optimize this to read and write stuff to move in chunks instead of one by one, to decrease number of seeks.
             while (true) {
               long nextSlot = (slot + 1) % hashCapacity;
-              indexData.seek(nextSlot * header.getSlotSize());
-              long hash3 = hashData.readHash(indexData);
-              long position3 = addressData.readAddress(indexData);
+              long nextSlotPos = nextSlot * header.getSlotSize();
+              long hash3 = hashData.readHash(indexData, nextSlotPos);
+              long position3 = addressData.readAddress(indexData, nextSlotPos + hashSize);
 
               if (position3 == 0) {
                 break;
@@ -409,16 +409,16 @@ final class IndexHash {
                 break;
               }
 
-              indexData.seek(slot * header.getSlotSize());
-              hashData.writeHash(hash3, indexData);
-              addressData.writeAddress(position3, indexData);
+              long slotPos = slot * header.getSlotSize();
+              hashData.writeHash(hash3, indexData, slotPos);
+              addressData.writeAddress(position3, indexData, slotPos + hashSize);
 
               slot = nextSlot;
             }
 
-            indexData.seek(slot * header.getSlotSize());
-            hashData.writeHash(0, indexData);
-            addressData.writeAddress(0, indexData);
+            long slotPos = slot * header.getSlotSize();
+            hashData.writeHash(0, indexData, slotPos);
+            addressData.writeAddress(0, indexData, slotPos + hashSize);
             header.deletedEntry(keyLen2, valueLen2);
 
             return;
@@ -435,7 +435,6 @@ final class IndexHash {
       if (slot == hashCapacity) {
         pos = 0;
         slot = 0;
-        indexData.seek(0);
       }
     }
   }
@@ -463,21 +462,22 @@ final class IndexHash {
     long hash = hashData.hash(keyLen, key, header.getHashSeed());
     long wantedSlot = getWantedSlot(hash, hashCapacity);
 
-    long pos = wantedSlot * header.getSlotSize();
-    indexData.seek(pos);
+    final int slotSize = header.getSlotSize();
+    long pos = wantedSlot * slotSize;
 
     long displacement = 0;
     long tries = hashCapacity;
     long slot = wantedSlot;
 
+    final int hashSize = hashData.size();
+
     boolean mightBeCollision = true;
     while (--tries >= 0) {
-      long hash2 = hashData.readHash(indexData);
-      long position2 = addressData.readAddress(indexData);
+      long hash2 = hashData.readHash(indexData, pos);
+      long position2 = addressData.readAddress(indexData, pos + hashSize);
       if (position2 == 0) {
-        indexData.seek(pos);
-        hashData.writeHash(hash, indexData);
-        addressData.writeAddress((position << entryIndexBits) | entryIndex, indexData);
+        hashData.writeHash(hash, indexData, pos);
+        addressData.writeAddress((position << entryIndexBits) | entryIndex, indexData, pos + hashSize);
         header.addedEntry();
         return;
       }
@@ -498,9 +498,8 @@ final class IndexHash {
         if (keyLen == keyLen2) {
           logData.readFully(keyBuf, 0, keyLen2);
           if (Util.equals(keyLen, key, keyBuf)) {
-            indexData.seek(pos);
-            hashData.writeHash(hash, indexData);
-            addressData.writeAddress((position << entryIndexBits) | entryIndex, indexData);
+            hashData.writeHash(hash, indexData, pos);
+            addressData.writeAddress((position << entryIndexBits) | entryIndex, indexData, pos + hashSize);
             header.replacedEntry(keyLen2, valueLen2);
             return;
           }
@@ -510,9 +509,8 @@ final class IndexHash {
       long otherDisplacement = getDisplacement(hashCapacity, slot, hash2);
       if (displacement > otherDisplacement) {
         // Steal the slot, and move the other one
-        indexData.seek(pos);
-        hashData.writeHash(hash, indexData);
-        addressData.writeAddress((position << entryIndexBits) | entryIndex, indexData);
+        hashData.writeHash(hash, indexData, pos);
+        addressData.writeAddress((position << entryIndexBits) | entryIndex, indexData, pos + hashSize);
 
         position = position2;
         entryIndex = entryIndex2;
@@ -521,11 +519,10 @@ final class IndexHash {
         mightBeCollision = false;
       }
 
-      pos += header.getSlotSize();
+      pos += slotSize;
       displacement++;
       slot++;
       if (slot >= hashCapacity) {
-        indexData.seek(0);
         pos = 0;
         slot = 0;
       }
@@ -547,7 +544,7 @@ final class IndexHash {
   }
 
   IndexHash duplicate() {
-    return new IndexHash(indexFile, logFile, header, logHeader, indexData.duplicate(), maxBlockSize, logData.duplicate());
+    return new IndexHash(indexFile, logFile, header, logHeader, indexData, maxBlockSize, logData.duplicate());
   }
 
   private class IndexHashEntry implements SparkeyReader.Entry {

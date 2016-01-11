@@ -19,6 +19,7 @@ import java.io.IOException;
 
 class UncompressedBlockRandomInput implements BlockRandomInput {
   private final ReadOnlyMemMap data;
+  private long pos;
 
   UncompressedBlockRandomInput(ReadOnlyMemMap data) {
     this.data = data;
@@ -31,26 +32,29 @@ class UncompressedBlockRandomInput implements BlockRandomInput {
 
   @Override
   public void seek(long pos) throws IOException {
-    data.seek(pos);
+    this.pos = pos;
   }
 
   @Override
   public int readUnsignedByte() throws IOException {
-    return data.readUnsignedByte();
+    final int value = data.readUnsignedByte(pos);
+    pos++;
+    return value;
   }
 
   @Override
   public void readFully(byte[] buffer, int offset, int length) throws IOException {
-    data.readFully(buffer, offset, length);
+    data.readFully(pos, buffer, offset, length);
+    pos += length;
   }
 
   @Override
   public void skipBytes(long amount) throws IOException {
-    data.skipBytes(amount);
+    pos += amount;
   }
 
   @Override
   public BlockRandomInput duplicate() {
-    return new UncompressedBlockRandomInput(data.duplicate());
+    return new UncompressedBlockRandomInput(data);
   }
 }

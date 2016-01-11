@@ -2,6 +2,7 @@ package com.spotify.sparkey;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
@@ -34,7 +35,7 @@ class ByteBufferCleaner {
    * for that in the JVM. On Windows, this leads to the fact,
    * that mmapped files cannot be modified or deleted.
    */
-  public static void cleanMapping(final MappedByteBuffer buffer) {
+  public static void cleanMapping(final ByteBuffer buffer) {
     if (!UNMAP_SUPPORTED) {
       return;
     }

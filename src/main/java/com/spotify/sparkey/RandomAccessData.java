@@ -18,5 +18,6 @@ package com.spotify.sparkey;
 import java.io.IOException;
 
 interface RandomAccessData {
-  int readUnsignedByte() throws IOException;
+  long readLong(long offset) throws IOException;
+  int readInt(long offset) throws IOException;
 }

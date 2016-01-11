@@ -21,28 +21,17 @@ public class ReadOnlyMemMapTest {
       ReadOnlyMemMap memMap = new ReadOnlyMemMap(new File("README.md"));
       ArrayList<ReadOnlyMemMap> maps = Lists.newArrayList();
       for (int i = 0; i < 100; i++) {
-        maps.add(memMap.duplicate());
+        maps.add(memMap);
       }
       memMap.close();
       for (ReadOnlyMemMap map : maps) {
         try {
-          map.readUnsignedByte();
-          fail();
-        } catch (IOException e) {
-        }
-        try {
-          map.seek(1);
-          fail();
-        } catch (IOException e) {
-        }
-        try {
-          map.skipBytes(1);
+          map.readUnsignedByte(0);
           fail();
         } catch (IOException e) {
         }
       }
     }
-
   }
 
   @Test
@@ -55,12 +44,10 @@ public class ReadOnlyMemMapTest {
       Thread thread = new Thread() {
         @Override
         public void run() {
-          ReadOnlyMemMap map = memMap.duplicate();
+          ReadOnlyMemMap map = memMap;
           while (running.get()) {
             try {
-              map.seek(1);
-              map.readUnsignedByte();
-              map.skipBytes(1);
+              map.readUnsignedByte(0);
             } catch (IOException e) {
               if (!e.getMessage().equals("Reader has been closed")) {
                 e.printStackTrace();

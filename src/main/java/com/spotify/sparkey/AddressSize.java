@@ -18,32 +18,42 @@ package com.spotify.sparkey;
 import java.io.IOException;
 
 enum AddressSize {
-  LONG() {
+  LONG(8) {
     @Override
-    long readAddress(RandomAccessData data) throws IOException {
-      return Util.readLittleEndianLong(data);
+    long readAddress(RandomAccessData data, long offset) throws IOException {
+      return Util.readLittleEndianLong(data, offset);
     }
 
     @Override
-    void writeAddress(long address, InMemoryData data) throws IOException {
-      Util.writeLittleEndianLong(address, data);
+    void writeAddress(long address, InMemoryData data, long offset) throws IOException {
+      Util.writeLittleEndianLong(address, data, offset);
     }
   },
-  INT() {
+  INT(4) {
     @Override
-    long readAddress(RandomAccessData data) throws IOException {
-      return Util.readLittleEndianInt(data) & INT_MASK;
+    long readAddress(RandomAccessData data, long offset) throws IOException {
+      return Util.readLittleEndianInt(data, offset) & INT_MASK;
     }
 
     @Override
-    void writeAddress(long address, InMemoryData data) throws IOException {
-      Util.writeLittleEndianInt((int) address, data);
+    void writeAddress(long address, InMemoryData data, long offset) throws IOException {
+      Util.writeLittleEndianInt((int) address, data, offset);
     }
   };
 
   private static final long INT_MASK = (1L << 32) - 1;
 
-  abstract long readAddress(RandomAccessData data) throws IOException;
+  private final int size;
 
-  abstract void writeAddress(long address, InMemoryData data) throws IOException;
+  AddressSize(int size) {
+    this.size = size;
+  }
+
+  abstract long readAddress(RandomAccessData data, long offset) throws IOException;
+
+  abstract void writeAddress(long address, InMemoryData data, long offset) throws IOException;
+
+  public int size() {
+    return size;
+  }
 }

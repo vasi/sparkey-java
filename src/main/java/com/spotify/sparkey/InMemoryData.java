@@ -15,85 +15,46 @@
  */
 package com.spotify.sparkey;
 
+import uk.co.real_logic.agrona.concurrent.UnsafeBuffer;
+
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-final class InMemoryData implements RandomAccessData {
-  private static final int CHUNK_SIZE = 1 << 30;
-  private static final int BITMASK_30 = ((1 << 30) - 1);
+final class InMemoryData extends LargeByteBuffer {
 
-  private final byte[][] chunks;
   private final long size;
-  private final int numChunks;
 
-  private int curChunkIndex;
-  private byte[] curChunk;
-  private int curChunkPos;
-
-  InMemoryData(long size) {
+  InMemoryData(long size) throws IOException {
+    super(getChunks(size), size);
     this.size = size;
+  }
+
+  private static UnsafeBuffer[] getChunks(long size) {
     if (size < 0) {
       throw new IllegalArgumentException("Negative size: " + size);
     }
-    long numFullMaps = (size - 1) >> 30;
+    final long numFullMaps = (size - 1) >> 30;
     if (numFullMaps >= Integer.MAX_VALUE) {
       throw new IllegalArgumentException("Too large size: " + size);
     }
-    long sizeFullMaps = numFullMaps * CHUNK_SIZE;
+    long sizeFullMaps = numFullMaps * MAP_SIZE;
 
-    numChunks = (int) (numFullMaps + 1);
-    chunks = new byte[numChunks][];
+    final int numChunks = (int) (numFullMaps + 1);
+    final UnsafeBuffer[] chunks = new UnsafeBuffer[numChunks];
     for (int i = 0; i < numFullMaps; i++) {
-      chunks[i] = new byte[CHUNK_SIZE];
+      chunks[i] = new UnsafeBuffer(new byte[(int) MAP_SIZE]);
     }
-    long lastSize = size - sizeFullMaps;
+    final long lastSize = size - sizeFullMaps;
     if (lastSize > 0) {
-      chunks[numChunks - 1] = new byte[(int) lastSize];
+      chunks[numChunks - 1] = new UnsafeBuffer(new byte[(int) lastSize]);
     }
-
-    curChunkIndex = 0;
-    curChunk = chunks[0];
+    return chunks;
   }
 
   void close() {
-    for (int i = 0; i < numChunks; i++) {
+    for (int i = 0; i < chunks.length; i++) {
       chunks[i] = null;
     }
-    curChunk = null;
-  }
-
-  void seek(long pos) throws IOException {
-    if (pos > size) {
-      throw new IOException("Corrupt index: referencing data outside of range");
-    }
-    int chunkIndex = (int) (pos >>> 30);
-    curChunkIndex = chunkIndex;
-    curChunk = chunks[chunkIndex];
-    curChunkPos = ((int) pos) & BITMASK_30;
-  }
-
-  void writeUnsignedByte(int value) throws IOException {
-    if (curChunkPos == CHUNK_SIZE) {
-      next();
-    }
-    curChunk[curChunkPos++] = (byte) value;
-  }
-
-  private void next() throws IOException {
-    curChunkIndex++;
-    if (curChunkIndex >= chunks.length) {
-      throw new IOException("Corrupt index: referencing data outside of range");
-    }
-    curChunk = chunks[curChunkIndex];
-    curChunkPos = 0;
-  }
-
-  @Override
-  public int readUnsignedByte() throws IOException {
-    if (curChunkPos == CHUNK_SIZE) {
-      next();
-    }
-    return Util.unsignedByte(curChunk[curChunkPos++]);
   }
 
   @Override
@@ -104,8 +65,8 @@ final class InMemoryData implements RandomAccessData {
   }
 
   public void flushToFile(FileOutputStream stream) throws IOException {
-    for (byte[] chunk : chunks) {
-      stream.write(chunk);
+    for (UnsafeBuffer chunk : chunks) {
+      stream.write(chunk.byteArray());
     }
   }
 }
